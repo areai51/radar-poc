@@ -25,7 +25,7 @@ console.log(foo(5));
 https://www.google.co.in
 
 ## Quadrant
-ubiquitous
+https://www.google.co.in
 
 ## Type
 Tools

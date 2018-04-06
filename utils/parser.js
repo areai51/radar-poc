@@ -18,86 +18,108 @@ const mdOptions = {
 };
 
 const md = require('markdown-it')(mdOptions);
-const fs = require('fs');
-const path = require('path');
 const _ = require('lodash');
 const sanitize = require('sanitize-html');
+const defaults = require('./defaults');
 
-function markdownParser(input) {
-
-    const inputData = md.parse(input);
-    let sanitizedData = {};
-    // flags
-    let isHeading = null;
-    let isTitle = false;
-    let isContent = true;
-
-    function levelOneParser(token, index) {
+class RadarMarkdownParser {
+    constructor(data, keys) {
+        this.data = md.parse(data);
+        this.keys = keys || defaults.defaultKeys;
+        this.sanitizedData = {};
+        this.tempData = {};
+        // Flags
+        this.isHeading = '';
+        this.isTitle = false;
+        this.isContent = true;
+        return this.initialize();
+    }
+    getKeyObj(key) {
+        let keyObj = {};
+        _.each(this.keys, (k) => {
+            if (k.name === key) {
+                keyObj = k;
+                return;
+            }
+        });
+        return keyObj;
+    }
+    levelOneSanitizer(token) {
         if (token.type === 'heading_open') {
-            isHeading = null;
-            isContent = false;
+            this.isHeading = '';
+            this.isContent = false;
             if (token.tag === 'h1') {
-                isTitle = true;
+                this.isTitle = true;
             }
             return;
         }
         if (token.type === 'heading_close') {
-            isContent = true;
-            isTitle = false;
+            this.isContent = true;
+            this.isTitle = false;
             return;
         }
-        if (isTitle && !isContent) {
-            if (!sanitizedData.name) {
-                sanitizedData.name = token.content;
+        if (this.isTitle && !this.isContent && !this.sanitizedData.name) {
+            this.sanitizedData.name = token.content;
+            return;
+        }
+        if (!this.isTitle && !this.isContent) {
+            const key = _.camelCase(token.content);
+            this.sanitizedData[key] = [];
+            this.isHeading = key;
+            return;
+        }
+        if (this.isContent) {
+            this.sanitizedData[this.isHeading].push(token);
+            return;
+        }
+    }
+    levelTwoSanitizer(value, key) {
+        let keyObj = this.getKeyObj(key);
+        if (keyObj.keyword === true) {
+            const contentParser = (token) => {
+                if (token.type === 'paragraph_open' || token.type === 'paragraph_close') {
+                    return;
+                }
+                if (this.tempData[keyObj.name]) {
+                    return;
+                }
+                this.tempData[keyObj.name] = _.lowerCase(token.content);
+            };
+
+            if (Array.isArray(value)) {
+                _.each(value, contentParser.bind(this));
             }
         }
-        if (!isTitle && !isContent) {
-            const key = _.camelCase(token.content) + '_temp';
-            sanitizedData[key] = [];
-            isHeading = key;
-        }
-        if (isContent) {
-            sanitizedData[isHeading].push(token);
-        }
-
+        return;
     }
-
-    function levelTwoParser(token, index) {
-        if (token.type === 'paragraph_open' || token.type === 'paragraph_close') {
-            return;
+    levelThreeSanitizer(value, key) {
+        let keyObj = this.getKeyObj(key);
+        if (keyObj.content === true) {
+            this.tempData[keyObj.name] = sanitize(md.renderer.render(this.sanitizedData[keyObj.name], mdOptions));
         }
-        const key = isHeading.replace(/_temp/, '');
-        if (sanitizedData[key]) {
-            return;
-        }
-        sanitizedData[key] = _.lowerCase(token.content);
     }
-
-    // Sanitize the data
-    inputData.forEach(levelOneParser);
-    // Type information
-    isHeading = 'type_temp';
-    sanitizedData[isHeading].forEach(levelTwoParser);
-    // Quadrant information
-    isHeading = 'quadrant_temp';
-    sanitizedData[isHeading].forEach(levelTwoParser);
-    // Iteration
-    Object.keys(sanitizedData).forEach(function (key) {
-        if (key.match(/_temp/)) {
-            const newKey = key.replace(/_temp/, '');
-            if (!sanitizedData[newKey]) {
-                sanitizedData[newKey] = sanitize(md.renderer.render(sanitizedData[key], mdOptions));
-            }
-        }
-    });
-    // Clean up
-    Object.keys(sanitizedData).forEach(function (key) {
-        if (key.match(/_temp/)) {
-            delete(sanitizedData[key]);
-        }
-    });
-
-    return sanitizedData;
+    updateSanitizedData() {
+        this.sanitizedData = Object.assign({}, this.sanitizedData, this.tempData);
+        this.tempData = {};
+    }
+    levelOne() {
+        _.each(this.data, this.levelOneSanitizer.bind(this));
+        this.updateSanitizedData();
+    }
+    levelTwo() {
+        _.each(this.sanitizedData, this.levelTwoSanitizer.bind(this));
+        this.updateSanitizedData();
+    }
+    levelThree() {
+        _.each(this.sanitizedData, this.levelThreeSanitizer.bind(this));
+        this.updateSanitizedData();
+    }
+    initialize() {
+        this.levelOne();
+        this.levelTwo();
+        this.levelThree();
+        return this.sanitizedData;
+    }
 }
 
-module.exports = markdownParser;
+module.exports = RadarMarkdownParser;
