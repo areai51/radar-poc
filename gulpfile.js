@@ -2,6 +2,7 @@ const gulp = require('gulp');
 const map = require('map-stream');
 const RadarMarkdownParser = require('./utils/parser');
 const gulpSequence = require('gulp-sequence');
+const path = require('path');
 const Vinyl = require('vinyl');
 const data = [];
 
@@ -30,7 +31,7 @@ gulp.task('write', function () {
 gulp.task('build', function () {
     return gulp.src(['./src/docs/*.md'])
         .pipe(map(function (file, done) {
-            data.push(new RadarMarkdownParser(file.contents.toString('utf8')));
+            data.push(new RadarMarkdownParser(file.contents.toString('utf8'), path.basename(file.path)));
             done();
         }))
         .pipe(gulp.dest('./dist/temp'));

@@ -25,11 +25,14 @@ const sanitize = require('sanitize-html');
 const defaults = require('./defaults');
 
 class RadarMarkdownParser {
-    constructor(data, keys) {
+    constructor(data, filename, keys) {
         this.data = md.parse(data);
         this.keys = keys || defaults.defaultKeys;
-        this.sanitizedData = {};
+        this.filename= filename;
         this.tempData = {};
+        this.sanitizedData = {
+            filename
+        };
         // Flags
         this.isHeading = '';
         this.isTitle = false;
@@ -120,11 +123,14 @@ class RadarMarkdownParser {
         _.each(this.sanitizedData, this.levelThreeSanitizer.bind(this));
         this.updateSanitizedData();
     }
+    whitelistKeys() {
+        return _.pick(this.sanitizedData, defaults.whitelistedKeys);
+    }
     initialize() {
         this.levelOne();
         this.levelTwo();
         this.levelThree();
-        return this.sanitizedData;
+        return this.whitelistKeys();
     }
 }
 

@@ -20,6 +20,9 @@ const defaultKeys = [{
     tags: true
 }];
 
+const whitelistedKeys = ['filename', 'name', 'quadrant', 'type', 'platform'];
+
 module.exports = {
-    defaultKeys
+    defaultKeys,
+    whitelistedKeys
 };
