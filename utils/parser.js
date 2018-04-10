@@ -10,7 +10,9 @@ const mdOptions = {
                 return '<pre class="hljs"><code>' +
                     hljs.highlight(lang, str, true).value +
                     '</code></pre>';
-            } catch (__) {}
+            } catch (err) {
+                console.log(err);
+            }
         }
 
         return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
@@ -75,7 +77,7 @@ class RadarMarkdownParser {
     }
     levelTwoSanitizer(value, key) {
         let keyObj = this.getKeyObj(key);
-        if (keyObj.keyword === true) {
+        if (keyObj.keyword === true || keyObj.tags === true) {
             const contentParser = (token) => {
                 if (token.type === 'paragraph_open' || token.type === 'paragraph_close') {
                     return;
@@ -83,7 +85,11 @@ class RadarMarkdownParser {
                 if (this.tempData[keyObj.name]) {
                     return;
                 }
-                this.tempData[keyObj.name] = _.lowerCase(token.content);
+                if (keyObj.tags) {
+                    this.tempData[keyObj.name] = token.content.split(',').map(item => _.trim(item.toLowerCase()));
+                } else {
+                    this.tempData[keyObj.name] = _.lowerCase(token.content);
+                }
             };
 
             if (Array.isArray(value)) {

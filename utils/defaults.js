@@ -15,6 +15,9 @@ const defaultKeys = [{
 }, {
     name: 'type',
     keyword: true
+}, {
+    name: 'platform',
+    tags: true
 }];
 
 module.exports = {

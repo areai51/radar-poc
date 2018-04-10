@@ -28,3 +28,6 @@ ubiquitous
 
 ## Type
 Tools
+
+### Platform
+web, mobile, ar/vr
